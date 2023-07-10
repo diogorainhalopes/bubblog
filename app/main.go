@@ -220,7 +220,7 @@ func main() {
 			filepicker:   &fp,
 			selectedFile: "",
 		},
-		state: fileSelectView,
+		state: menuView,
 	}
 	m.menu.list.Title = "golog"
 
