@@ -74,14 +74,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch m.state {
 	case fileSelectView:
-		return updateFilePicker(msg, m)
+		return m.updateFilePicker(msg)
+	case menuView:
+		return m.updateMenu(msg)
+	default:
+		return m, nil
 	}
-	return updateMenu(msg, m)
 }
 
 // Update Sub-Functions
 
-func updateMenu(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
+func (m *model) updateMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -94,6 +97,12 @@ func updateMenu(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 			if ok && i.desc == "2" {
 				m.state = fileSelectView
 				m.menu.option, m.err = strconv.Atoi(i.desc)
+				// Initialize the filepicker model
+				//*m.fp.filepicker = filepicker.New()
+				m.fp.filepicker.CurrentDirectory, _ = os.UserHomeDir()
+				m.fp.filepicker.AllowedTypes = []string{".mod", ".sum", ".go", ".txt", ".md"}
+				m.fp.filepicker.Init()
+				return m, nil
 			}
 		}
 	case tea.WindowSizeMsg:
@@ -107,7 +116,9 @@ func updateMenu(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func updateFilePicker(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
+func (m *model) updateFilePicker(msg tea.Msg) (tea.Model, tea.Cmd) {
+	//fmt.Println("updateFilePicker called") // print statement for debugging
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -124,8 +135,10 @@ func updateFilePicker(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 	}
 
 	var cmd tea.Cmd
+	m.fp.filepicker.Init()
 	*m.fp.filepicker, cmd = m.fp.filepicker.Update(msg)
 
+	//fmt.Printf("filepicker current directory: %s\n", m.fp.filepicker.CurrentDirectory) // print statement for debugging
 	// Did the user select a file?
 	if didSelect, path := m.fp.filepicker.DidSelectFile(msg); didSelect {
 		// Get the path of the selected file.
@@ -138,6 +151,8 @@ func updateFilePicker(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 		// Let's clear the selectedFile and display an error.
 		m.err = errors.New(path + " is not valid.")
 		m.fp.selectedFile = ""
+		m.state = fileSelectView
+
 		return m, tea.Batch(cmd, clearErrorAfter(2*time.Second))
 	}
 
@@ -207,7 +222,6 @@ func main() {
 	fp = filepicker.New()
 	fp.CurrentDirectory, _ = os.UserHomeDir()
 	fp.AllowedTypes = []string{".mod", ".sum", ".go", ".txt", ".md"}
-	//fp.CurrentDirectory, _ = os.UserHomeDir()
 
 	l = list.New(items, list.NewDefaultDelegate(), 0, 0)
 
@@ -222,7 +236,7 @@ func main() {
 		},
 		state: menuView,
 	}
-	m.menu.list.Title = "golog"
+	m.menu.list.Title = "bubblog"
 
 	p = tea.NewProgram(m, tea.WithAltScreen())
 
